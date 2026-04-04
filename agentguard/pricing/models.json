@@ -1,0 +1,7 @@
+{
+    "qwen/qwen3.6-plus:free": {"input_per_1k": 0.0, "output_per_1k": 0.0},
+    "qwen/qwen3-coder:free":  {"input_per_1k": 0.0, "output_per_1k": 0.0},
+    "qwen/qwen3-coder":       {"input_per_1k": 0.00022, "output_per_1k": 0.0010},
+    "anthropic/claude-sonnet-4": {"input_per_1k": 0.0030, "output_per_1k": 0.0150},
+    "openai/gpt-4o":          {"input_per_1k": 0.0050, "output_per_1k": 0.0150}
+}
