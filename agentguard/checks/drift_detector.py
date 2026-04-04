@@ -17,7 +17,12 @@ class DriftDetector:
         self.ctx = ctx
         self.threshold = threshold
         self.interval = interval
-        self.anchor = self._embed(ctx.cfg.get("anchor_prompt", ""))
+        self._anchor = None  # lazy-init
+
+    def _get_anchor(self) -> np.ndarray:
+        if self._anchor is None:
+            self._anchor = self._embed(self.ctx.cfg.get("anchor_prompt", ""))
+        return self._anchor
 
     def _embed(self, text: str) -> np.ndarray:
         import ollama
@@ -29,9 +34,8 @@ class DriftDetector:
             return "ok"
         current_text = _extract_text(self.ctx.last_step)
         current = self._embed(current_text)
-        cos = np.dot(self.anchor, current) / (
-            np.linalg.norm(self.anchor) * np.linalg.norm(current)
-        )
+        anchor = self._get_anchor()
+        cos = np.dot(anchor, current) / (np.linalg.norm(anchor) * np.linalg.norm(current))
         dist = 1.0 - cos
         return "drift" if dist > self.threshold else "ok"
 

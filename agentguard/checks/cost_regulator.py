@@ -31,7 +31,10 @@ class CostRegulator:
         tokens_out = len(self.enc.encode(text_out))
         text_in = ""
         for a in self.ctx.action_window:
-            text_in += str(a.get("text", a.get("message", "")))
+            if isinstance(a, dict):
+                text_in += str(a.get("text", a.get("message", "")))
+            else:
+                text_in += str(a)
         tokens_in = len(self.enc.encode(text_in))
 
         cost_in = tokens_in * self.pricing["input_per_1k"] / 1000

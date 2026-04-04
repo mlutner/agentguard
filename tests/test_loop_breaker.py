@@ -20,7 +20,7 @@ def test_no_loop(ctx):
 
 
 def test_exact_duplicate(ctx):
-    """Same tool + same args 3x → exact_loop."""
+    """Same tool + same args 4 times with threshold=3 → exceeds threshold."""
     lb = LoopBreaker(ctx, threshold=3)
     for _ in range(4):
         ctx.record({"tool": "search", "args": "identical query"})
@@ -28,17 +28,17 @@ def test_exact_duplicate(ctx):
 
 
 def test_exact_duplicate_below_threshold(ctx):
-    """2x duplicate with threshold=3 → still ok."""
+    """3 duplicates with threshold=3 → exactly at threshold, not over."""
     lb = LoopBreaker(ctx, threshold=3)
-    ctx.record({"tool": "search", "args": "query_a"})
-    ctx.record({"tool": "search", "args": "query_a"})
+    for _ in range(3):
+        ctx.record({"tool": "search", "args": "query_a"})
     assert lb.validate() == "ok"
 
 
 def test_semantic_loop_same_tool(ctx):
     """Same tool, different args, 5 times in window → semantic_loop."""
     lb = LoopBreaker(ctx, same_tool_limit=5)
-    for i in range(6):
+    for i in range(5):
         ctx.record({"tool": "web_search", "args": f"query variation {i}"})
     result = lb.validate()
     assert result == "semantic_loop:web_search"
@@ -54,11 +54,11 @@ def test_semantic_loop_below_limit(ctx):
 
 def test_resolve_returns_interrupt(ctx):
     """resolve() returns a structured interrupt."""
-    lb = LoopBreaker(ctx, threshold=2)
-    ctx.record({"tool": "search", "args": "x"})
-    ctx.record({"tool": "search", "args": "x"})
-    ctx.record({"tool": "search", "args": "x"})
+    lb = LoopBreaker(ctx, threshold=3)
+    for _ in range(4):
+        ctx.record({"tool": "search", "args": "x"})
     verdict = lb.validate()
+    assert verdict == "exact_loop"
     resolution = lb.resolve(verdict, {})
     assert resolution["type"] == "interrupt"
     assert "exact_loop" in resolution["reason"]
