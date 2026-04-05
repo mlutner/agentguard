@@ -4,14 +4,13 @@ from __future__ import annotations
 
 import asyncio
 import functools
+import time
 from typing import Any, AsyncIterator, Callable, Iterator
 
 from agentguard.state import StepContext
-from agentguard.checks.heartbeat import Heartbeat, _set_start
+from agentguard.checks.heartbeat import Heartbeat
 from agentguard.checks.loop_breaker import LoopBreaker
 from agentguard.checks.cost_regulator import CostRegulator
-
-import time
 
 
 def guard(
@@ -23,7 +22,6 @@ def guard(
     anchor_prompt: str | None = None,
     **kwargs: Any,
 ):
-    """Wrap an agent function with background guard checks."""
     cfg = dict(
         max_cost=max_cost, max_steps=max_steps, stall_timeout=stall_timeout,
         drift_threshold=drift_threshold, anchor_prompt=anchor_prompt, **kwargs,
@@ -34,7 +32,6 @@ def guard(
         async def async_wrapper(*args: Any, **fn_kwargs: Any) -> AsyncIterator[dict]:
             ctx = StepContext(cfg)
             checks = _build_checks(ctx, cfg)
-            _set_start(time.time())
             agent = fn(*args, **fn_kwargs)
 
             if hasattr(agent, "__aiter__"):
@@ -77,7 +74,6 @@ async def _guarded_iter(
             yield {"type": "interrupt", "reason": ctx._stop_reason}
             return
 
-        # Run checks before recording this step
         for check in checks:
             verdict = check.validate()
             if verdict != "ok":
@@ -85,7 +81,6 @@ async def _guarded_iter(
                 yield resolution
                 return
 
-        # Record and then check step limit
         ctx.record(step)
         max_steps = ctx.cfg.get("max_steps", 100)
         if ctx.step_count >= max_steps:
@@ -100,6 +95,7 @@ def _build_checks(ctx: StepContext, cfg: dict) -> list:
     checks = []
     checks.append(LoopBreaker(ctx, threshold=cfg.get("loop_threshold", 3)))
     checks.append(CostRegulator(ctx))
+    checks.append(Heartbeat(ctx))
     if cfg.get("drift_threshold") is not None and cfg.get("anchor_prompt"):
         from agentguard.checks.drift_detector import DriftDetector
         checks.append(DriftDetector(

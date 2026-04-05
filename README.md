@@ -4,6 +4,8 @@ Background nervous system for AI agents. Cost caps, loop breaking, drift detecti
 
 **The pitch:** The thing that lets you stop watching your agents.
 
+---
+
 ## Quick Start
 
 ```bash
@@ -15,55 +17,82 @@ from agentguard import guard
 
 @guard(max_cost=5.0, max_steps=100, anchor_prompt="Research competitors in AI")
 async def research_agent(query):
-    # Your agent code here — yields step dicts
     for result in agent.run(query):
         yield {"type": "tool", "tool": "search", "args": result}
 ```
 
+---
+
+## Four Checks That Run Before Every Agent Step
+
+| Check | What It Catches | How It Works |
+|-------|----------------|--------------|
+| **Loop Breaker** | Exact duplicates + semantic loops | Hash tool+args, same-tool frequency in sliding window |
+| **Cost Regulator** | Budget explosions (silent and loud) | tiktoken estimation, hard USD cap, instant shutdown |
+| **Drift Detector** | Agent goes off-topic | Local embeddings (nomic-embed-text) vs. intent anchor |
+| **Heartbeat** | Stalled agents (no progress for X seconds) | Per-instance timestamp, timeout enforcement |
+
+---
+
+## Current Metrics (v0.1.0 — April 4, 2026)
+
+```
+Unit Tests:          17/17 passing (0.19s)
+Adversarial:          5/5  passing (0.55s)
+Framework Adapters:  LangGraph, CrewAI, async/sync/callable
+Code:               ~2500 lines, 12 Python files
+License:            MIT
+```
+
+---
+
 ## Guard Parameters
 
-| Param | Type | Required | Description |
-|-------|------|----------|-------------|
-| `max_cost` | float | No | Hard USD budget cap (default: 5.0) |
-| `max_steps` | int | No | Maximum agent steps (default: 100) |
-| `stall_timeout` | float | No | Seconds of no-progress before heartbeat kill |
-| `drift_threshold` | float | **Required for drift** | Cosine distance threshold (0.0-1.0) |
-| `anchor_prompt` | str | Required with drift | Intent/topic anchor for drift detection |
+| Param | Type | Default | Description |
+|-------|------|---------|-------------|
+| `max_cost` | float | 5.0 | Hard USD budget cap per guarded run |
+| `max_steps` | int | 100 | Maximum agent steps before forced stop |
+| `stall_timeout` | float | 120.0 | Seconds of no-progress before heartbeat kill |
+| `drift_threshold` | float | **None** (off) | **Required if drift active**. Cosine distance threshold |
+| `anchor_prompt` | str | None | Intent/topic anchor for drift detection |
 
-## Four Checks
+---
 
-### 1. Loop Breaker
-Detects:
-- **Exact loops**: Same tool + same args repeated N times
-- **Semantic loops**: Same tool called 5+ times in last 8 steps (catches rephrased search loops)
+## Launch Roadmap
 
-### 2. Cost Regulator
-Tracks token consumption per step. Shuts down agent when `max_cost` is reached.
-Uses tiktoken for estimation, pricing from `pricing/models.json`.
+### Phase 1 ✅ (DONE)
+- Core SDK with 4 checks
+- 22 test suite (17 unit + 5 adversarial benchmarks)
+- Framework adapters (LangGraph, CrewAI, async/sync/callable)
+- MIT license, public GitHub repo
 
-### 3. Drift Detector
-Embeds anchor_prompt + current step text via local ollama (nomic-embed-text).
-If cosine distance > `drift_threshold`, injects a "refocus" correction into the step.
+### Phase 2 (Week 1-2)
+- PyPI upload: `pip install agentguard`
+- 10 developers testing (free)
+- Auto-iteration pipeline (adversarial → patch → commit loop)
 
-### 4. Heartbeat
-If no agent step in `stall_timeout` seconds, force-stops with interrupt.
+### Phase 3 (Month 2)
+- Cloud layer: dashboard, Slack/webhook alerts, cost analytics
+- Pricing: $49-$199/mo for team features
+- 1000+ GitHub stars
 
-## Framework Adapters
+### Phase 4 (Month 3-6)
+- Enterprise: team policies, audit logs, integration marketplace
+- Funding pitch
 
-| Framework | Status |
-|-----------|--------|
-| Async generators | ✅ Native support |
-| Sync generators | ✅ Auto-wrapped |
-| Plain callables | ✅ Single-step wrapper |
-| LangGraph | ✅ Callback-based adapter |
-| CrewAI | ✅ (basic — extends as needed) |
+---
 
-## Testing
+## Why This Wins
 
-```bash
-pip install -e ".[dev]"
-pytest -v
-```
+| Competitor | What They Do | How AgentGuard Wins |
+|------------|-------------|-------------------|
+| LangSmith | Observability dashboard | We STOP agents before they break |
+| PydanticAI | Output validation | We protect the agent, not just the output |
+| DSPy | Programmatic prompts | We wrap their programs without modification |
+
+**Observability shows you the crash. We prevent it.**
+
+---
 
 ## License
 
